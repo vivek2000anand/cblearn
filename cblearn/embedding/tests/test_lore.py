@@ -470,16 +470,19 @@ def test_mlds_fit_wrong_n_components(small_triplets):
 # ---------------------------------------------------------------------------
 
 def test_r_base_fallback_activate(monkeypatch):
-    """When the modern Converter API raises TypeError, activate() fallback runs."""
+    """When the modern Converter API raises TypeError, activate() fallback runs.
+
+    Carefully restores all class-level state so subsequent R wrapper doctests
+    are not affected (the mocked activate() is a no-op that does not register
+    the numpy converter, so we must remove robjects/rpackages afterwards to
+    force a clean re-initialization when the real R wrappers next run).
+    """
     pytest.importorskip("rpy2", reason="rpy2 not installed")
     import cblearn.embedding.wrapper._r_base as r_base_mod
     from rpy2.robjects import numpy2ri
+    import rpy2.robjects.conversion as _rpy2_conv
 
     activate_called = []
-
-    # Patch Converter to raise TypeError (simulates old rpy2 without Converter)
-    import rpy2.robjects.conversion as _rpy2_conv
-    original_converter_cls = _rpy2_conv.Converter
 
     class _RaisingConverter:
         def __init__(self, *args, **kwargs):
@@ -494,6 +497,16 @@ def test_r_base_fallback_activate(monkeypatch):
     if hasattr(r_base_mod.RWrapperMixin, 'rpackages'):
         delattr(r_base_mod.RWrapperMixin, 'rpackages')
 
-    r_base_mod.RWrapperMixin.init_r()
+    try:
+        r_base_mod.RWrapperMixin.init_r()
+    finally:
+        # Remove the state set by our mock init_r() — the mocked activate()
+        # did NOT register the numpy converter, so any subsequent call that
+        # checks hasattr(RWrapperMixin, 'robjects') would skip init_r() and
+        # fail with py2rpy errors.  Deleting here forces proper re-init.
+        if hasattr(r_base_mod.RWrapperMixin, 'robjects'):
+            delattr(r_base_mod.RWrapperMixin, 'robjects')
+        if hasattr(r_base_mod.RWrapperMixin, 'rpackages'):
+            delattr(r_base_mod.RWrapperMixin, 'rpackages')
 
     assert activate_called, "numpy2ri.activate() should have been called as fallback"
