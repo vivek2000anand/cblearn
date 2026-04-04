@@ -21,6 +21,12 @@ class TripletEmbeddingMixin(TransformerMixin):
             'triplets': True  # enforce triplet X in tests
         }
 
+    def __sklearn_tags__(self):
+        tags = super().__sklearn_tags__()
+        tags.input_tags.positive_only = True
+        tags.transformer_tags.preserves_dtype = []
+        return tags
+
     def transform(self, X: Optional[utils.Query]):
         """ Transform the input data into the learned embedding.
 

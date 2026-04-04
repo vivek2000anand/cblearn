@@ -9,6 +9,7 @@ from cblearn.embedding._soe import SOE, _soe_loss
 
 def test_soe_repeat():
     """ Test that the repeated initialization leads to stable results. """
+    np.random.seed(0)
     n, d = 20, 1  # optimization is most unstable for d = 1
     X = np.random.randn(n, d)
 

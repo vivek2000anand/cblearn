@@ -445,11 +445,11 @@ def _lore_train_torch(init, triplets, lamb, p, margin, mu,
 
         # Proximal / singular-value thresholding step
         with torch.no_grad():
-            U, S, Vt = torch.linalg.svd(
-                X - f_grad / mu_val,
-                full_matrices=False,
-                driver='gesvd',
-            )
+            svd_input = X - f_grad / mu_val
+            svd_kwargs = {'full_matrices': False}
+            if svd_input.is_cuda:
+                svd_kwargs['driver'] = 'gesvd'
+            U, S, Vt = torch.linalg.svd(svd_input, **svd_kwargs)
             new_S = S - (lamb / mu_val) * g_grad
             rank_mask = new_S > zero
             masked_S = new_S * rank_mask

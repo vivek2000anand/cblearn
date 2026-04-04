@@ -144,7 +144,7 @@ for example by using a `grid search`_.
    :alt: Pytorch backend
 
    The Adam optimizer's runtime and error depend highly on the learning rate hyperparameter.
-   Here, we show this dependence with a minimal CKL implementation using PyTorch on the :ref:`Vogue Dataset <nature_vogue_dataset>` (60 objects).
+   Here, we show this dependence with a minimal CKL implementation using PyTorch (60 objects).
 
 
 -------------------------
@@ -156,6 +156,5 @@ Dataset loading utilities
 .. include:: ../../cblearn/datasets/descr/car_similarity.rst
 .. include:: ../../cblearn/datasets/descr/imagenet_similarity.rst
 .. include:: ../../cblearn/datasets/descr/things_similarity.rst
-.. include:: ../../cblearn/datasets/descr/nature_vogue_similarity.rst
 .. include:: ../../cblearn/datasets/descr/material_similarity.rst
 .. include:: ../../cblearn/datasets/descr/similarity_matrix.rst

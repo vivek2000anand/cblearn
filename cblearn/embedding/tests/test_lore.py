@@ -329,3 +329,48 @@ def test_lore_demo_end_to_end():
     # All diagnostic attributes are populated
     assert len(est.objectives_) == est.n_iter_
     assert len(est.sigma_history_) > 0
+
+
+def test_lore_n_objects_inferred(small_triplets):
+    """fit() without n_objects kwarg should infer n_objects from triplet indices."""
+    triplets = small_triplets
+    est = LORE(n_components=2, backend="scipy", max_iter=5, random_state=0)
+    # Omit n_objects — should be inferred as triplets.max() + 1
+    est.fit(triplets)
+    expected_n_objects = int(triplets.max()) + 1
+    assert est.embedding_.shape[0] == expected_n_objects
+
+
+@pytest.mark.skipif(
+    not __import__('importlib').util.find_spec('torch'),
+    reason="torch not installed"
+)
+def test_lore_torch_verbose(small_triplets):
+    """LORE torch backend with verbose=True should print without errors."""
+    import io
+    import sys
+    triplets = small_triplets
+    est = LORE(n_components=2, backend="torch", max_iter=5, verbose=True, random_state=0)
+    captured = io.StringIO()
+    sys.stdout = captured
+    try:
+        est.fit(triplets, n_objects=15)
+    finally:
+        sys.stdout = sys.__stdout__
+    output = captured.getvalue()
+    assert est.embedding_.shape == (15, 2)
+    # verbose mode should have printed something
+    assert len(output) > 0
+
+
+@pytest.mark.skipif(
+    not __import__('importlib').util.find_spec('torch'),
+    reason="torch not installed"
+)
+def test_lore_torch_nuclear_norm(small_triplets):
+    """LORE torch backend with p=1.0 (nuclear norm) should fit without errors."""
+    triplets = small_triplets
+    est = LORE(n_components=2, p=1.0, backend="torch", max_iter=10, random_state=0)
+    est.fit(triplets, n_objects=15)
+    assert est.embedding_.shape == (15, 2)
+    assert est.rank_ >= 1

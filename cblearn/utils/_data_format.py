@@ -65,7 +65,7 @@ def data_format(query: Union[Query], response: Optional[np.ndarray] = None
         TypeError: Invalid type of data.
     """
     query_format = None
-    if isinstance(query, (scipy.sparse.spmatrix, sparse.SparseArray)):
+    if scipy.sparse.issparse(query) or isinstance(query, sparse.SparseArray):
         query_format = QueryFormat.TENSOR
     elif isinstance(query, (Sequence, np.ndarray)):
         query_format = QueryFormat.LIST
