@@ -14,7 +14,11 @@ class RWrapperMixin:
             cls.robjects = robjects
             cls.rpackages = packages
 
-            numpy2ri.activate()
+            try:
+                numpy2ri.activate()
+            except DeprecationWarning:
+                # rpy2 >= 3.5.12 deprecated activate(); use converter addition
+                robjects.default_converter += numpy2ri.converter
         except ImportError:
             raise ImportError("Expects installed python package 'rpy2', could not find it. "
                               "Did you install cblearn with the wrapper extras? "
