@@ -15,7 +15,7 @@ from cblearn.utils import check_query_response
 ARCHIVE = _base.RemoteFileMetadata(
     filename='material-appearance-similarity-master.zip',
     url='https://github.com/mlagunas/material-appearance-similarity/archive/refs/heads/master.zip',
-    checksum=('f0be4d573829fd5e5a7e7b332989545cbf6584eaf25e2555371703a9264f5937'))
+    checksum=('ae1f577cef981e6951f88a06d519ab80212fdbd361aeecbae20845bcfd4c3d29'))
 
 logger = logging.getLogger(__name__)
 
