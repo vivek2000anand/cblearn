@@ -15,6 +15,7 @@ from cblearn.embedding._lore_utils import (
     _logistic_triplet_loss_numpy,
     _schatten_p_value_numpy,
     _schatten_p_grad_numpy,
+    _estimate_lipschitz_numpy,
 )
 
 
@@ -374,3 +375,125 @@ def test_lore_torch_nuclear_norm(small_triplets):
     est.fit(triplets, n_objects=15)
     assert est.embedding_.shape == (15, 2)
     assert est.rank_ >= 1
+
+
+# ---------------------------------------------------------------------------
+# Coverage: scipy convergence verbose (line 244), norm_hvp==0 (line 147)
+# ---------------------------------------------------------------------------
+
+def test_lore_scipy_convergence_verbose(small_triplets, capsys):
+    """verbose=True + high tol triggers the convergence print in scipy backend."""
+    est = LORE(n_components=3, backend="scipy", max_iter=200,
+               tol=100.0, verbose=True, random_state=0)
+    est.fit(small_triplets, n_objects=15)
+    captured = capsys.readouterr()
+    # Either converged early (prints "[scipy] Converged...") or ran to max_iter
+    assert est.embedding_.shape == (15, 3)
+
+
+def test_estimate_lipschitz_zero_hvp():
+    """norm_hvp == 0 branch: empty triplets → zero gradient → zero HVP → break."""
+    # With no triplets the loss is identically 0, so the gradient is a zero
+    # matrix at every point.  The HVP is therefore zero and norm_hvp == 0
+    # triggers the break on the first power-method iteration (line 147).
+    n, d = 5, 2
+    X = np.ones((n, d))
+    triplets = np.zeros((0, 3), dtype=int)
+    result = _estimate_lipschitz_numpy(X, triplets, margin=0.1, num_iters=10)
+    assert result >= 0.0  # returns eigenvalue + 0.05
+
+
+# ---------------------------------------------------------------------------
+# Coverage: torch explicit mu (line 400)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
+def test_lore_torch_explicit_mu(small_triplets):
+    """torch backend with explicit float mu should bypass Lipschitz estimation."""
+    est = LORE(n_components=3, mu=5.0, backend="torch", max_iter=20,
+               verbose=False, random_state=0)
+    est.fit(small_triplets, n_objects=15)
+    assert est.embedding_.shape == (15, 3)
+
+
+# ---------------------------------------------------------------------------
+# Coverage: torch convergence verbose (lines 435-439) and KL-dist (lines 467-471)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
+def test_lore_torch_convergence_verbose_early_stop(small_triplets, capsys):
+    """torch + verbose=True + moderate tol triggers objective convergence print.
+
+    Uses tol=1e-4 so that per-step objective change converges before the
+    total KL-distance from init (which stays large after X has drifted).
+    Covers lines 435-439.
+    """
+    est = LORE(n_components=3, backend="torch", max_iter=500,
+               tol=1e-4, verbose=True, random_state=0)
+    est.fit(small_triplets, n_objects=15)
+    captured = capsys.readouterr()
+    assert est.embedding_.shape == (15, 3)
+    # Should stop before max_iter when objective converges
+    assert est.n_iter_ < 500
+
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
+def test_lore_torch_kldist_convergence(small_triplets):
+    """Very large tol triggers KL-dist convergence path on first iteration.
+
+    With tol=1000.0, the objective change check (|inf - obj|) does NOT fire
+    on iteration 0.  But kl_dist = ||X_new - init||_inf is a small positive
+    number << 1000, so the KL-dist check fires first.  Covers lines 467-471.
+    """
+    est = LORE(n_components=3, mu=2.0, backend="torch", max_iter=200,
+               tol=1000.0, verbose=True, random_state=0)
+    est.fit(small_triplets, n_objects=15)
+    assert est.embedding_.shape == (15, 3)
+    # Stops on iteration 0 via KL-dist
+    assert est.n_iter_ == 1
+
+
+# ---------------------------------------------------------------------------
+# Coverage: MLDS fit() ValueError for n_components != 1 (line 84)
+# ---------------------------------------------------------------------------
+
+def test_mlds_fit_wrong_n_components(small_triplets):
+    """MLDS.fit() should raise ValueError when n_components != 1."""
+    from cblearn.embedding import MLDS
+    est = MLDS(n_components=2)
+    with pytest.raises(ValueError, match="n_components=1"):
+        est.fit(small_triplets)
+
+
+# ---------------------------------------------------------------------------
+# Coverage: _r_base.py fallback numpy2ri.activate() (lines 29-30)
+# ---------------------------------------------------------------------------
+
+def test_r_base_fallback_activate(monkeypatch):
+    """When the modern Converter API raises TypeError, activate() fallback runs."""
+    pytest.importorskip("rpy2", reason="rpy2 not installed")
+    import cblearn.embedding.wrapper._r_base as r_base_mod
+    from rpy2.robjects import numpy2ri
+
+    activate_called = []
+
+    # Patch Converter to raise TypeError (simulates old rpy2 without Converter)
+    import rpy2.robjects.conversion as _rpy2_conv
+    original_converter_cls = _rpy2_conv.Converter
+
+    class _RaisingConverter:
+        def __init__(self, *args, **kwargs):
+            raise TypeError("simulated old rpy2")
+
+    monkeypatch.setattr(_rpy2_conv, 'Converter', _RaisingConverter)
+    monkeypatch.setattr(numpy2ri, 'activate', lambda: activate_called.append(True))
+
+    # Clear cached state so init_r() runs the full path again
+    if hasattr(r_base_mod.RWrapperMixin, 'robjects'):
+        delattr(r_base_mod.RWrapperMixin, 'robjects')
+    if hasattr(r_base_mod.RWrapperMixin, 'rpackages'):
+        delattr(r_base_mod.RWrapperMixin, 'rpackages')
+
+    r_base_mod.RWrapperMixin.init_r()
+
+    assert activate_called, "numpy2ri.activate() should have been called as fallback"
