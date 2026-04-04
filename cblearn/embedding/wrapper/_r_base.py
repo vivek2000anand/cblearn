@@ -15,10 +15,16 @@ class RWrapperMixin:
             cls.rpackages = packages
 
             try:
-                # Modern rpy2 (>= 3.5.12): use set_conversion to register numpy conversions
-                # globally. activate() is deprecated and raises in rpy2 >= 3.6.
+                # Modern rpy2 (>= 3.5.12): register only numpy→R (py2rpy) conversion.
+                # Adding numpy2ri.converter in full also installs rpy2py rules that convert
+                # R ListVector → Python NamedList, stripping .rx2 and S3 class info from
+                # R function return values. We only need the Python→R direction.
                 from rpy2.robjects import conversion as _rpy2_conv
-                _rpy2_conv.set_conversion(_rpy2_conv.get_conversion() + numpy2ri.converter)
+                _np2r = _rpy2_conv.Converter('numpy py2rpy only')
+                for klass, func in numpy2ri.converter.py2rpy.registry.items():
+                    if klass is not object:
+                        _np2r.py2rpy.register(klass, func)
+                _rpy2_conv.set_conversion(_rpy2_conv.get_conversion() + _np2r)
             except (TypeError, AttributeError):
                 # Older rpy2: activate() registers numpy conversions globally
                 numpy2ri.activate()
