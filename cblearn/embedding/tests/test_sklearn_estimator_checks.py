@@ -24,13 +24,14 @@ from sklearn.utils._tags import (
     _safe_tags,
 )
 
-from cblearn.embedding import SOE, MLDS, STE, TSTE, CKL, GNMDS
+from cblearn.embedding import SOE, MLDS, STE, TSTE, CKL, GNMDS, LORE
 from cblearn.embedding import wrapper
 from cblearn.datasets import make_random_triplets
 
 
 # Add new estimators here:
-ALL_TRIPLET_EMBEDDING_ESTIMATORS = [SOE(), MLDS(), STE(), TSTE(), CKL(), GNMDS()]
+ALL_TRIPLET_EMBEDDING_ESTIMATORS = [SOE(), MLDS(), STE(), TSTE(), CKL(), GNMDS(),
+                                    LORE(backend="scipy", max_iter=50)]
 
 
 
