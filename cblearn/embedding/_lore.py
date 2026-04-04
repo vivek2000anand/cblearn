@@ -11,7 +11,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding._lore_utils import _lore_train_torch, _lore_train_scipy
 
 
-class LORE(BaseEstimator, TripletEmbeddingMixin):
+class LORE(TripletEmbeddingMixin, BaseEstimator):
     """LORE: Jointly Learning the Intrinsic Dimensionality and Relative
     Similarity Structure from Ordinal Data.
 

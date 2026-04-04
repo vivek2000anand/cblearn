@@ -9,7 +9,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding import _torch_utils
 
 
-class FORTE(BaseEstimator, TripletEmbeddingMixin):
+class FORTE(TripletEmbeddingMixin, BaseEstimator):
     """ Fast Ordinal Triplet Embedding (FORTE).
 
         FORTE [1]_ minimizes a kernel version of the triplet hinge soft objective

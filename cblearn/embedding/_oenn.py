@@ -9,7 +9,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding._torch_utils import assert_torch_is_available, torch_device
 
 
-class OENN(BaseEstimator, TripletEmbeddingMixin):
+class OENN(TripletEmbeddingMixin, BaseEstimator):
     """ Ordinal Embedding Neural Network (OENN).
 
         OENN [1]_ learns a dense neural network, that maps from the
