@@ -13,7 +13,7 @@ from cblearn.utils import check_query_response
 
 
 ARCHIVE = _base.RemoteFileMetadata(
-    filename='material-appearance-similarity-master.zip',
+    filename='material-appearance-similarity-main.zip',
     url='https://github.com/mlagunas/material-appearance-similarity/archive/refs/heads/master.zip',
     checksum=('ae1f577cef981e6951f88a06d519ab80212fdbd361aeecbae20845bcfd4c3d29'))
 
@@ -87,12 +87,12 @@ def fetch_material_similarity(data_home: Optional[os.PathLike] = None, download_
 
         archive_path = _base._fetch_remote(ARCHIVE, dirname=data_home)
         with zipfile.ZipFile(archive_path) as zf:
-            with zf.open('material-appearance-similarity-master/data/answers_processed_test.json', 'r') as f:
+            with zf.open('material-appearance-similarity-main/data/answers_processed_test.json', 'r') as f:
                 test_data = json.load(f)
-            with zf.open('material-appearance-similarity-master/data/answers_processed_train.json', 'r') as f:
+            with zf.open('material-appearance-similarity-main/data/answers_processed_train.json', 'r') as f:
                 train_data = json.load(f)
 
-            image_path = 'material-appearance-similarity-master/data/havran1_ennis_298x298_LDR/'
+            image_path = 'material-appearance-similarity-main/data/havran1_ennis_298x298_LDR/'
             material_names = np.asarray([name[len(image_path):-len('.jpg')] for name in zf.namelist()
                                         if name.startswith(image_path) and name.endswith('.jpg')])
             material_names.sort()
