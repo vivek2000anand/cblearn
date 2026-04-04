@@ -15,10 +15,13 @@ class RWrapperMixin:
             cls.rpackages = packages
 
             try:
+                # Modern rpy2 (>= 3.5.12): use set_conversion to register numpy conversions
+                # globally. activate() is deprecated and raises in rpy2 >= 3.6.
+                from rpy2.robjects import conversion as _rpy2_conv
+                _rpy2_conv.set_conversion(_rpy2_conv.get_conversion() + numpy2ri.converter)
+            except (TypeError, AttributeError):
+                # Older rpy2: activate() registers numpy conversions globally
                 numpy2ri.activate()
-            except DeprecationWarning:
-                # rpy2 >= 3.5.12 deprecated activate(); use converter addition
-                robjects.default_converter += numpy2ri.converter
         except ImportError:
             raise ImportError("Expects installed python package 'rpy2', could not find it. "
                               "Did you install cblearn with the wrapper extras? "
