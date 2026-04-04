@@ -19,10 +19,15 @@ import numpy as np
 from sklearn.utils.estimator_checks import parametrize_with_checks
 import sklearn.utils.estimator_checks
 from sklearn.metrics.pairwise import linear_kernel, pairwise_distances
-from sklearn.utils._tags import (
-    _DEFAULT_TAGS,
-    _safe_tags,
-)
+try:
+    from sklearn.utils._tags import _safe_tags  # sklearn < 1.6
+except ImportError:
+    # sklearn >= 1.6 removed private _safe_tags; emulate it via _more_tags()
+    def _safe_tags(estimator, key=None):
+        tags = estimator._more_tags() if hasattr(estimator, '_more_tags') else {}
+        if key is not None:
+            return tags.get(key, False)
+        return tags
 
 from cblearn.embedding import SOE, MLDS, STE, TSTE, CKL, GNMDS, LORE
 from cblearn.embedding import wrapper
