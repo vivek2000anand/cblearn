@@ -13,7 +13,7 @@ from sklearn.utils import Bunch
 ARCHIVE = _base.RemoteFileMetadata(
     filename='all.zip',
     url='https://files.osf.io/v1/resources/ey9vp/providers/osfstorage/'
-        '5e7a7065d2927f006fdd1cf9?action=download&amp;direct&amp;version=1',
+        '5e7a7065d2927f006fdd1cf9?action=download&direct&version=1',
     checksum=('8c799cdebb00192ecb63f3e28c6eeee0e2f64fcb8dad3bc68982e551f2ae5b1c'))
 
 logger = logging.getLogger(__name__)
