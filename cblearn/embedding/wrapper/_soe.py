@@ -102,11 +102,3 @@ class SOE(TripletEmbeddingMixin, RWrapperMixin, BaseEstimator):
             self.embedding_ = np.asarray(soe_result.rx2("X"))
 
         return self
-
-    def _more_tags(self):
-        return {
-            **TripletEmbeddingMixin._more_tags(self),
-            'Xfail': [
-                'check_transformer_n_iter',  # the R package does not return n_iter
-            ]
-        }

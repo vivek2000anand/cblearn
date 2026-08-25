@@ -108,9 +108,6 @@ class SharedColumnEncoder(TransformerMixin, BaseEstimator):
         X = check_array(X, allow_nd=True, dtype=None)
         return self.encoder_.inverse_transform(X.reshape(-1, *X.shape[2:])).reshape(X.shape[0], -1)
 
-    def _more_tags(self):
-        return {}
-
 
 def query_from_columns(data: Union[np.ndarray, "pandas.DataFrame"],  # noqa: F821  ignore pandas, not a library dep
                        query_columns: Union[List[str], List[int]],
