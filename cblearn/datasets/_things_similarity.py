@@ -1,22 +1,26 @@
 import csv
-import io
 from pathlib import Path
 import logging
 import joblib
 import os
-from os.path import join
 from typing import Optional, Union
-from urllib.request import urlretrieve
-import zipfile
 
 import numpy as np
 from sklearn.datasets import _base
 from sklearn.utils import check_random_state, Bunch
 
-ARCHIVE = _base.RemoteFileMetadata(
-    filename='osfstorage-archive.zip',
-    url='https://files.osf.io/v1/resources/z2784/providers/osfstorage/?zip=',
-    checksum=('cannot check - zip involves randomness'))
+# The single files are downloaded individually instead of the complete OSF project archive
+# (https://files.osf.io/v1/resources/z2784/providers/osfstorage/?zip=).
+# That archive is generated on-the-fly by the OSF server, is more than 180MB large and
+# has no stable checksum, which makes the download slow and unreliable.
+TRIPLETS = _base.RemoteFileMetadata(
+    filename='things_data1854_batch5_test10.txt',
+    url='https://osf.io/download/sd3f7/',
+    checksum='789fb927c87538d29e0cf294793280cf5a77d45dc5fdd87cf8c726993397adb8')
+OBJECT_NAMES = _base.RemoteFileMetadata(
+    filename='things_items1854names.tsv',
+    url='https://osf.io/download/sz2ux/',
+    checksum='03dbe77972f9466ff8baa0da604d9f5104f677bf77cc602faebfa03a290fb51c')
 
 logger = logging.getLogger(__name__)
 
@@ -84,21 +88,20 @@ def fetch_things_similarity(data_home: Optional[os.PathLike] = None, download_if
         if not download_if_missing:
             raise IOError("Data not found and `download_if_missing` is False")
 
-        logger.info('Downloading imagenet similarity data from {} to {}'.format(ARCHIVE.url, data_home))
+        remote_files = (TRIPLETS, OBJECT_NAMES)
+        downloaded_paths = []
+        for remote in remote_files:
+            logger.info('Downloading things similarity data from {} to {}'.format(remote.url, data_home))
+            downloaded_paths.append(_base._fetch_remote(remote, dirname=data_home))
+        triplets_path, names_path = downloaded_paths
 
-        archive_path = (ARCHIVE.filename if data_home is None
-                        else join(data_home, ARCHIVE.filename))
-        urlretrieve(ARCHIVE.url, archive_path)
-
-        with zipfile.ZipFile(archive_path) as zf:
-            with zf.open('data/data1854_batch5_test10.txt', 'r') as f:
-                data = np.loadtxt(f, delimiter=' ')
-
-            with zf.open('items1854names.tsv', 'r') as f:
-                objects = np.array(list(csv.reader(io.TextIOWrapper(f), dialect='excel-tab'))[1:]).T
+        data = np.loadtxt(triplets_path, delimiter=' ')
+        with open(names_path, 'r', newline='', encoding='utf-8') as f:
+            objects = np.array(list(csv.reader(f, dialect='excel-tab'))[1:]).T
 
         joblib.dump((data, objects), filepath, compress=6)
-        os.remove(archive_path)
+        for path in downloaded_paths:
+            os.remove(path)
     else:
         (data, objects) = joblib.load(filepath)
 
