@@ -12,12 +12,23 @@ from sklearn.utils import check_random_state, Bunch
 from cblearn.utils import check_query_response
 
 
+# Pinned to a commit instead of a branch. A branch archive is rebuilt whenever
+# upstream pushes, which changes the checksum and breaks the download.
+ARCHIVE_COMMIT = 'e5fccab94462f8b245e29818a31e83253369db6e'
 ARCHIVE = _base.RemoteFileMetadata(
-    filename='material-appearance-similarity-master.zip',
-    url='https://github.com/mlagunas/material-appearance-similarity/archive/refs/heads/master.zip',
-    checksum=('f0be4d573829fd5e5a7e7b332989545cbf6584eaf25e2555371703a9264f5937'))
+    filename=f'material-appearance-similarity-{ARCHIVE_COMMIT}.zip',
+    url=f'https://github.com/mlagunas/material-appearance-similarity/archive/{ARCHIVE_COMMIT}.zip',
+    checksum=('13a5227f8fc0b767366242f76eaea05b6d9ffa7d378dcf8fea7880097cc39e69'))
 
 logger = logging.getLogger(__name__)
+
+
+def _archive_root(zip_file: zipfile.ZipFile) -> str:
+    """ Return the single top level directory of the downloaded archive. """
+    roots = {name.split('/')[0] for name in zip_file.namelist()}
+    if len(roots) != 1:
+        raise IOError(f"Expects a single top level directory in the archive, got {sorted(roots)}.")
+    return roots.pop()
 
 
 def fetch_material_similarity(data_home: Optional[os.PathLike] = None, download_if_missing: bool = True,
@@ -87,12 +98,15 @@ def fetch_material_similarity(data_home: Optional[os.PathLike] = None, download_
 
         archive_path = _base._fetch_remote(ARCHIVE, dirname=data_home)
         with zipfile.ZipFile(archive_path) as zf:
-            with zf.open('material-appearance-similarity-master/data/answers_processed_test.json', 'r') as f:
+            # The archive wraps everything in a single directory named after the
+            # branch or commit it was built from, so read it instead of assuming it.
+            root = _archive_root(zf)
+            with zf.open(f'{root}/data/answers_processed_test.json', 'r') as f:
                 test_data = json.load(f)
-            with zf.open('material-appearance-similarity-master/data/answers_processed_train.json', 'r') as f:
+            with zf.open(f'{root}/data/answers_processed_train.json', 'r') as f:
                 train_data = json.load(f)
 
-            image_path = 'material-appearance-similarity-master/data/havran1_ennis_298x298_LDR/'
+            image_path = f'{root}/data/havran1_ennis_298x298_LDR/'
             material_names = np.asarray([name[len(image_path):-len('.jpg')] for name in zf.namelist()
                                         if name.startswith(image_path) and name.endswith('.jpg')])
             material_names.sort()
