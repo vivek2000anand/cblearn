@@ -21,15 +21,16 @@ def query_accuracy(true_response: utils.Response, pred_response: utils.Response)
     Returns:
         Number between 0 and 1, indicating the fraction of triplet constraints which are violated.
     """
-    if not isinstance(true_response, (sparse.COO, scipy.sparse.spmatrix)) and np.asarray(true_response).ndim == 1:
+    if (not isinstance(true_response, sparse.COO) and not scipy.sparse.issparse(true_response)
+            and np.asarray(true_response).ndim == 1):
         # Assume only a sequence of responses was passed
         true_query = None
         true_response = utils.check_response(true_response, result_format='boolean')
     else:
         true_query, true_response = utils.check_query_response(true_response, result_format='list-boolean')
 
-    if not isinstance(pred_response, (sparse.COO, scipy.sparse.spmatrix)) \
-            and np.asarray(pred_response).ndim == 1:
+    if (not isinstance(pred_response, sparse.COO) and not scipy.sparse.issparse(pred_response)
+            and np.asarray(pred_response).ndim == 1):
         # Assume only a sequence of answers was passed
         pred_query = None
         pred_response = utils.check_response(pred_response, result_format='boolean')
