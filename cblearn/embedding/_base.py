@@ -11,15 +11,21 @@ from cblearn import metrics
 
 
 class TripletEmbeddingMixin(TransformerMixin):
-    def _more_tags(self):
-        return {
-            'requires_positive_X': True,
-            'requires_positive_y': True,
-            'X_types': ['categorical'],
-            'preserves_dtype': [],  # .transform does not preserve dtype
-            'binary_only': True,  # enforce binary y in tests
-            'triplets': True  # enforce triplet X in tests
-        }
+    def __sklearn_tags__(self):
+        """ Estimator tags, as used by scikit-learn's common estimator checks.
+
+        Uses the dataclass-based tag API introduced in scikit-learn 1.6,
+        which replaced the dictionary returned by the former _more_tags.
+        Triplet estimators are recognized in the tests by their class
+        (see TripletEmbeddingMixin), because scikit-learn's Tags dataclass
+        cannot carry library specific keys.
+        """
+        tags = super().__sklearn_tags__()
+        tags.input_tags.positive_only = True  # was requires_positive_X
+        tags.input_tags.categorical = True  # was X_types=['categorical']
+        tags.target_tags.positive_only = True  # was requires_positive_y
+        tags.transformer_tags.preserves_dtype = []  # .transform does not preserve dtype
+        return tags
 
     def transform(self, X: Optional[utils.Query]):
         """ Transform the input data into the learned embedding.

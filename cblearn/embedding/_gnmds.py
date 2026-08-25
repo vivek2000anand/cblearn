@@ -11,7 +11,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding import _torch_utils
 
 
-class GNMDS(BaseEstimator, TripletEmbeddingMixin):
+class GNMDS(TripletEmbeddingMixin, BaseEstimator):
     """ Generalized Non-metric Multidimensional Scaling (GNMDS).
 
         Embedding estimator for triplet and quadruplet data (currently only triplet data is implemented).

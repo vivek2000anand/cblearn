@@ -11,7 +11,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding import _torch_utils
 
 
-class CKL(BaseEstimator, TripletEmbeddingMixin):
+class CKL(TripletEmbeddingMixin, BaseEstimator):
     """ Crowd Kernel Learning (CKL) embedding kernel for triplet data.
 
         CKL [1]_ searches for an Euclidean representation of objects.

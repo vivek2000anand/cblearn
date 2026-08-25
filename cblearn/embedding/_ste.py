@@ -12,7 +12,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding._torch_utils import assert_torch_is_available, torch_minimize
 
 
-class STE(BaseEstimator, TripletEmbeddingMixin):
+class STE(TripletEmbeddingMixin, BaseEstimator):
     """ Stochastic Triplet Embedding algorithm (STE / t-STE).
 
         STE [1]_ maximizes the probability, that the triplets are satisfied.
@@ -182,7 +182,10 @@ def _ste_x_grad(x, x_shape, triplets, heavy_tailed):
             - (X[I] - X[J]),
             (X[I] - X[K])])
 
-    grad_triplets *= (P * (1 - P))[np.newaxis, :, np.newaxis]
+    # The loss is -log(P), so the outer derivative is -(1 - P) and not the
+    # derivative of P itself, P * (1 - P). The 1 / P of the chain rule through
+    # the logarithm cancels the leading P.
+    grad_triplets *= (1 - P)[np.newaxis, :, np.newaxis]
 
     loss_grad = np.empty_like(X)
     for dim in range(X.shape[1]):

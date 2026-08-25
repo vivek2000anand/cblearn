@@ -17,6 +17,11 @@ ARCHIVE = _base.RemoteFileMetadata(
 
 logger = logging.getLogger(__name__)
 
+# The download host anttiukkonen.com returns 404 for nature_and_vogue_triplets.zip,
+# so these examples cannot run even with --remote-data. Skip them until a new
+# source for the dataset is found.
+__doctest_skip__ = ['fetch_nature_scene_similarity', 'fetch_vogue_cover_similarity']
+
 
 def fetch_nature_scene_similarity(data_home: Optional[os.PathLike] = None, download_if_missing: bool = True,
                                   shuffle: bool = True, random_state: Optional[np.random.RandomState] = None,

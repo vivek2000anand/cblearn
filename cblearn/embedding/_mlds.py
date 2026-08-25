@@ -11,7 +11,7 @@ from cblearn import utils
 from cblearn.embedding._base import TripletEmbeddingMixin
 
 
-class MLDS(BaseEstimator, TripletEmbeddingMixin):
+class MLDS(TripletEmbeddingMixin, BaseEstimator):
     """ A maximum-likelihood difference scaling (MLDS) estimator .
 
     MLDS [1]_ is limited to monotonic, one-dimensional embeddings.
@@ -57,8 +57,9 @@ class MLDS(BaseEstimator, TripletEmbeddingMixin):
             verbose: Enable verbose output.
             max_iter: Maximum number of optimization iterations.
         """
-        if n_components != 1:
-            raise ValueError(f"MLDS expects n_components=1, got {n_components}")
+        # Note: n_components is validated in .fit, not here.
+        # scikit-learn requires that __init__ stores the parameters unaltered
+        # and raises no errors (check_do_not_raise_errors_in_init_or_set_params).
         self.n_components = n_components
         self.random_state = random_state
         self.method = method
@@ -82,6 +83,8 @@ class MLDS(BaseEstimator, TripletEmbeddingMixin):
         Returns:
             This estimator
         """
+        if self.n_components != 1:
+            raise ValueError(f"MLDS expects n_components=1, got {self.n_components}")
         self.fit_X_ = utils.check_query(X, result_format='list-order')  # for data validation in .transform
         random_state = check_random_state(self.random_state)
 

@@ -178,7 +178,7 @@ def check_tensor_query_response(query: Union[sparse.COO, scipy.sparse.spmatrix],
     if format[0] is not QueryFormat.TENSOR or format[1] is not ResponseFormat.COUNT:
         raise ValueError(f"Expects result_format tensor-count, got {result_format}.")
 
-    if isinstance(query, scipy.sparse.spmatrix):
+    if scipy.sparse.issparse(query):
         n_objects = query.shape[0]
         n_dim = int(np.ceil(np.log(np.prod(query.shape)) / np.log(n_objects)))
         query = sparse.COO.from_scipy_sparse(query)

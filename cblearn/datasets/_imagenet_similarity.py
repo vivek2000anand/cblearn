@@ -2,22 +2,50 @@ from pathlib import Path
 import logging
 import joblib
 import os
-from os.path import join
 from typing import Optional, Union
-from urllib.request import urlretrieve
-import zipfile
 
 import numpy as np
 from sklearn.datasets import _base
 from sklearn.utils import check_random_state, Bunch
 
-ARCHIVE = _base.RemoteFileMetadata(
-    filename='osfstorage-archive.zip',
-    url='https://files.osf.io/v1/resources/7f96y/providers/osfstorage/?zip=',
-    checksum=('cannot check - zip involves randomness'))
+# The single files are downloaded individually instead of the complete OSF project archive
+# (https://files.osf.io/v1/resources/7f96y/providers/osfstorage/?zip=).
+# That archive is generated on-the-fly by the OSF server, is about 230MB large and
+# has no stable checksum, which makes the download slow and unreliable.
+OBSERVATIONS_V1 = _base.RemoteFileMetadata(
+    filename='imagenet_similarity_obs-118.hdf5',
+    url='https://osf.io/download/ej6sz/',
+    checksum='d8a51e689ebd10c7c8a22eb9a52b16a7f18a8d205f4bce434bdaea5ad0d4fe61')
+OBSERVATIONS_V2 = _base.RemoteFileMetadata(
+    filename='imagenet_similarity_obs-195.hdf5',
+    url='https://osf.io/download/x6dht/',
+    checksum='2b4b22c1c5f425eea774e88fded389e188adc4424ba4eb9ca307a5ea732a3d76')
+CATALOG = _base.RemoteFileMetadata(
+    filename='imagenet_similarity_catalog.hdf5',
+    url='https://osf.io/download/bf3e2/',
+    checksum='920d3c577308b256fce2599726bb5eacd433a6250f710dc011048abf20cb85e4')
 
 logger = logging.getLogger(__name__)
 __doctest_requires__ = {'fetch_imagenet_similarity': ['h5py']}
+
+
+def _import_h5py():
+    """ Import the optional h5py dependency or raise an informative error. """
+    try:
+        import h5py
+    except ImportError:
+        raise ImportError(
+            "This function needs the extra package 'h5py' but could not find it.\n"
+            "The package can be installed with pip install h5py.\n"
+            "On some platforms you might have to install hdf5 libraries separately.")
+    return h5py
+
+
+def _read_hdf5_arrays(path: os.PathLike) -> dict:
+    """ Read all datasets of a HDF5 file into a dictionary of numpy arrays. """
+    h5py = _import_h5py()
+    with h5py.File(path, mode='r') as f:
+        return {k: np.asarray(v[()]) for k, v in f.items()}
 
 
 def fetch_imagenet_similarity(data_home: Optional[os.PathLike] = None, download_if_missing: bool = True,
@@ -103,32 +131,19 @@ def fetch_imagenet_similarity(data_home: Optional[os.PathLike] = None, download_
         if not download_if_missing:
             raise IOError("Data not found and `download_if_missing` is False")
 
-        logger.info('Downloading imagenet similarity data from {} to {}'.format(ARCHIVE.url, data_home))
+        _import_h5py()  # fail early, before downloading
 
-        archive_path = (ARCHIVE.filename if data_home is None
-                        else join(data_home, ARCHIVE.filename))
-        urlretrieve(ARCHIVE.url, archive_path)
+        remote_files = (OBSERVATIONS_V1, OBSERVATIONS_V2, CATALOG)
+        downloaded_paths = []
+        for remote in remote_files:
+            logger.info('Downloading imagenet similarity data from {} to {}'.format(remote.url, data_home))
+            downloaded_paths.append(_base._fetch_remote(remote, dirname=data_home))
 
-        with zipfile.ZipFile(archive_path) as zf:
-            try:
-                import h5py
-            except ImportError:
-                raise ImportError(
-                    "This function needs the extra package 'h5py' but could not find it.\n"
-                    "The package can be installed with pip install h5py.\n"
-                    "On some platforms you might have to install hdf5 libraries separately.")
-
-            with zf.open('data/deprecated/psiz0.4.1/obs-118.hdf5', 'r') as f:
-                data_v1 = {k: np.asarray(v[()]) for k, v in h5py.File(f, mode='r').items()}
-
-            with zf.open('data/deprecated/psiz0.4.1/obs-195.hdf5', 'r') as f:
-                data_v2 = {k: np.asarray(v[()]) for k, v in h5py.File(f, mode='r').items()}
-
-            with zf.open('data/deprecated/psiz0.4.1/catalog.hdf5', 'r') as f:
-                catalog = {k: np.asarray(v[()]) for k, v in h5py.File(f, mode='r').items()}
+        data_v1, data_v2, catalog = [_read_hdf5_arrays(path) for path in downloaded_paths]
 
         joblib.dump((data_v1, data_v2, catalog), filepath, compress=6)
-        os.remove(archive_path)
+        for path in downloaded_paths:
+            os.remove(path)
     else:
         (data_v1, data_v2, catalog) = joblib.load(filepath)
 
