@@ -48,7 +48,7 @@ def _enforce_estimator_tags_X(estimator, X, kernel=linear_kernel):
         n = X.shape[0]
         if len(X) == 1:  # make_random_triplets expects at least 3 objects
             X = np.r_[X, X, X]
-        X = make_random_triplets(X, size=n, result_format='list-order')
+        X = make_random_triplets(X, size=n, result_format='list-order', random_state=0)
     return X
 
 
@@ -86,7 +86,15 @@ def test_enforce_estimator_tags_monkeypatch():
 # This tag, however, would skip more tests than necessary.
 SKIP_FOR_TRIPLETS = [
     'check_methods_subset_invariance',
-    'check_methods_sample_order_invariance'
+    'check_methods_sample_order_invariance',
+    # The check subtracts the mean from X after our monkey patch turned it into
+    # triplets, so it feeds negative object indices to .fit and expects the
+    # message "Negative values in data". X here are indices, not features.
+    'check_positive_only_tag_during_fit',
+    # The check calls .transform/.predict/.score with a single column of X and
+    # expects a feature-count error. Our X columns are the three objects of a
+    # triplet, so a subset of columns is not a meaningful input.
+    'check_n_features_in_after_fitting',
 ]
 
 @pytest.mark.sklearn
