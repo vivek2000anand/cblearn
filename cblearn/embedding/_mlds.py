@@ -11,7 +11,7 @@ from cblearn import utils
 from cblearn.embedding._base import TripletEmbeddingMixin
 
 
-class MLDS(BaseEstimator, TripletEmbeddingMixin):
+class MLDS(TripletEmbeddingMixin, BaseEstimator):
     """ A maximum-likelihood difference scaling (MLDS) estimator .
 
     MLDS [1]_ is limited to monotonic, one-dimensional embeddings.

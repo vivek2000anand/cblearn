@@ -12,7 +12,7 @@ from cblearn.embedding.wrapper._r_base import RWrapperMixin
 __doctest_requires__ = {'SOE': ['rpy2']}
 
 
-class SOE(BaseEstimator, TripletEmbeddingMixin, RWrapperMixin):
+class SOE(TripletEmbeddingMixin, RWrapperMixin, BaseEstimator):
     """ A soft ordinal embedding estimator, wrapping an R implementation.
 
         The wrapped R package is the reference implementation of SOE [1]_.

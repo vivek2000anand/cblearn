@@ -12,7 +12,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding._torch_utils import assert_torch_is_available, torch_minimize
 
 
-class STE(BaseEstimator, TripletEmbeddingMixin):
+class STE(TripletEmbeddingMixin, BaseEstimator):
     """ Stochastic Triplet Embedding algorithm (STE / t-STE).
 
         STE [1]_ maximizes the probability, that the triplets are satisfied.

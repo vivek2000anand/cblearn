@@ -12,7 +12,7 @@ from cblearn.embedding.wrapper._r_base import RWrapperMixin
 __doctest_requires__ = {'MLDS': ['rpy2']}
 
 
-class MLDS(BaseEstimator, TripletEmbeddingMixin, RWrapperMixin):
+class MLDS(TripletEmbeddingMixin, RWrapperMixin, BaseEstimator):
     """ A maximum-likelihood difference scaling (MLDS) estimator, wrapping the R implementation.
 
     Note::

@@ -11,7 +11,7 @@ from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding._torch_utils import assert_torch_is_available, torch_minimize
 
 
-class SOE(BaseEstimator, TripletEmbeddingMixin):
+class SOE(TripletEmbeddingMixin, BaseEstimator):
     """ Soft Ordinal Embedding (SOE).
 
         SOE [1]_ is minimizing the soft objective as a smooth relaxation of the triplet error.
