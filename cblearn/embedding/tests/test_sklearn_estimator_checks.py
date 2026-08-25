@@ -19,12 +19,9 @@ import numpy as np
 from sklearn.utils.estimator_checks import parametrize_with_checks
 import sklearn.utils.estimator_checks
 from sklearn.metrics.pairwise import linear_kernel, pairwise_distances
-from sklearn.utils._tags import (
-    _DEFAULT_TAGS,
-    _safe_tags,
-)
 
 from cblearn.embedding import SOE, MLDS, STE, TSTE, CKL, GNMDS
+from cblearn.embedding._base import TripletEmbeddingMixin
 from cblearn.embedding import wrapper
 from cblearn.datasets import make_random_triplets
 
@@ -40,9 +37,14 @@ orig_enforce_estimator_tags_X = sklearn.utils.estimator_checks._enforce_estimato
 orig_enforce_estimator_tags_y = sklearn.utils.estimator_checks._enforce_estimator_tags_y
 
 
+def _is_triplet_estimator(estimator):
+    """ Triplet estimators expect triplet queries instead of features as X. """
+    return isinstance(estimator, TripletEmbeddingMixin)
+
+
 def _enforce_estimator_tags_X(estimator, X, kernel=linear_kernel):
-    X = orig_enforce_estimator_tags_X(estimator, X, kernel)
-    if _safe_tags(estimator, key="triplets"):
+    X = orig_enforce_estimator_tags_X(estimator, X, kernel=kernel)
+    if _is_triplet_estimator(estimator):
         n = X.shape[0]
         if len(X) == 1:  # make_random_triplets expects at least 3 objects
             X = np.r_[X, X, X]
@@ -52,7 +54,7 @@ def _enforce_estimator_tags_X(estimator, X, kernel=linear_kernel):
 
 def _enforce_estimator_tags_y(estimator, y):
     y = orig_enforce_estimator_tags_y(estimator, y)
-    if _safe_tags(estimator, key="triplets"):
+    if _is_triplet_estimator(estimator):
         #y = np.where(y == y.flat[0], 1, -1)
         n = y.shape[0]
         y = np.ones(n)
@@ -67,7 +69,7 @@ def test_enforce_estimator_tags_monkeypatch():
     X = np.random.rand(10, 5)
     y = np.random.rand(10, 1)
     estimator = ALL_TRIPLET_EMBEDDING_ESTIMATORS[0]
-    assert _safe_tags(estimator).get('triplets', False)
+    assert _is_triplet_estimator(estimator)
     new_X = sklearn.utils.estimator_checks._enforce_estimator_tags_X(estimator, X)
     new_y = sklearn.utils.estimator_checks._enforce_estimator_tags_y(estimator, y)
 
@@ -93,8 +95,7 @@ SKIP_FOR_TRIPLETS = [
     ALL_TRIPLET_EMBEDDING_ESTIMATORS
 )
 def test_all_estimators(estimator, check):
-    tags = _safe_tags(estimator)
-    if not (tags.get('triplets') and check.func.__name__ in SKIP_FOR_TRIPLETS):
+    if not (_is_triplet_estimator(estimator) and check.func.__name__ in SKIP_FOR_TRIPLETS):
         check(estimator)
 
 
