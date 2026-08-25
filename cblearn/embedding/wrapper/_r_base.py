@@ -14,7 +14,22 @@ class RWrapperMixin:
             cls.robjects = robjects
             cls.rpackages = packages
 
-            numpy2ri.activate()
+            try:
+                # rpy2 >= 3.5.12 deprecated numpy2ri.activate(), which now raises.
+                # Registering numpy2ri.converter as a whole would also install its
+                # rpy2py rules. Those convert an R ListVector into a Python object
+                # and strip the .rx2 accessor and the S3 class of R return values,
+                # which the wrappers rely on. Only the python to R direction
+                # (py2rpy) is needed here.
+                from rpy2.robjects import conversion
+                py2rpy_only = conversion.Converter('numpy py2rpy only')
+                for klass, func in numpy2ri.converter.py2rpy.registry.items():
+                    if klass is not object:
+                        py2rpy_only.py2rpy.register(klass, func)
+                conversion.set_conversion(conversion.get_conversion() + py2rpy_only)
+            except (TypeError, AttributeError):
+                # Older rpy2: activate() registers the numpy conversion globally.
+                numpy2ri.activate()
         except ImportError:
             raise ImportError("Expects installed python package 'rpy2', could not find it. "
                               "Did you install cblearn with the wrapper extras? "
