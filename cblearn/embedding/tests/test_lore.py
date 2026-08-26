@@ -1,14 +1,19 @@
 """Tests for the LORE (Low-Rank Ordinal Embedding) estimator."""
 
+import sys
+import types
+
 import numpy as np
 import pytest
 from scipy.optimize import check_grad
 
 from cblearn.datasets import (
     LinearSubspace,
+    make_all_triplet_indices,
     make_random_triplet_indices,
     make_random_triplets,
     noisy_triplet_response,
+    triplet_response,
 )
 from cblearn.embedding import LORE
 from cblearn.embedding._lore_utils import (
@@ -404,7 +409,7 @@ def test_estimate_lipschitz_zero_hvp():
 
 
 # ---------------------------------------------------------------------------
-# Coverage: torch explicit mu (line 400)
+# Coverage: torch explicit mu (line 398)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
@@ -417,7 +422,7 @@ def test_lore_torch_explicit_mu(small_triplets):
 
 
 # ---------------------------------------------------------------------------
-# Coverage: torch convergence verbose (lines 435-439) and KL-dist (lines 467-471)
+# Coverage: torch convergence verbose (lines 433-437) and KL-dist (lines 465-469)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
@@ -426,7 +431,7 @@ def test_lore_torch_convergence_verbose_early_stop(small_triplets, capsys):
 
     Uses tol=1e-4 so that per-step objective change converges before the
     total KL-distance from init (which stays large after X has drifted).
-    Covers lines 435-439.
+    Covers lines 433-437.
     """
     est = LORE(n_components=3, backend="torch", max_iter=500,
                tol=1e-4, verbose=True, random_state=0)
@@ -443,7 +448,7 @@ def test_lore_torch_kldist_convergence(small_triplets):
 
     With tol=1000.0, the objective change check (|inf - obj|) does NOT fire
     on iteration 0.  But kl_dist = ||X_new - init||_inf is a small positive
-    number << 1000, so the KL-dist check fires first.  Covers lines 467-471.
+    number << 1000, so the KL-dist check fires first.  Covers lines 465-469.
     """
     est = LORE(n_components=3, mu=2.0, backend="torch", max_iter=200,
                tol=1000.0, verbose=True, random_state=0)
@@ -451,3 +456,104 @@ def test_lore_torch_kldist_convergence(small_triplets):
     assert est.embedding_.shape == (15, 3)
     # Stops on iteration 0 via KL-dist
     assert est.n_iter_ == 1
+
+
+# ---------------------------------------------------------------------------
+# Coverage: torch tqdm progress bar (lines 413, 472-477) and fallback (415)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
+def test_lore_torch_tqdm_progress(small_triplets, monkeypatch):
+    """A (fake) tqdm module provides the progress bar and receives postfix stats.
+
+    Injecting the fake into sys.modules makes the test independent of
+    whether tqdm is actually installed.  Covers lines 413 and 472-477.
+    """
+    postfix_calls = []
+
+    class FakeTqdm:
+        def __init__(self, iterable, disable=False):
+            self.iterable = iterable
+
+        def __iter__(self):
+            return iter(self.iterable)
+
+        def set_postfix(self, stats):
+            postfix_calls.append(stats)
+
+    fake_module = types.ModuleType("tqdm")
+    fake_module.tqdm = FakeTqdm
+    monkeypatch.setitem(sys.modules, "tqdm", fake_module)
+
+    est = LORE(n_components=3, mu=5.0, backend="torch", max_iter=3,
+               random_state=0)
+    est.fit(small_triplets, n_objects=15)
+
+    assert postfix_calls, "set_postfix was never called"
+    assert 'rank' in postfix_calls[0]
+
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
+def test_lore_torch_no_tqdm_fallback(small_triplets, monkeypatch):
+    """Without tqdm the loop falls back to a plain range (lines 414-415)."""
+    monkeypatch.setitem(sys.modules, "tqdm", None)   # forces ImportError
+
+    est = LORE(n_components=3, mu=5.0, backend="torch", max_iter=3,
+               random_state=0)
+    est.fit(small_triplets, n_objects=15)
+    assert est.embedding_.shape == (15, 3)
+
+
+# ---------------------------------------------------------------------------
+# Real CUDA execution (runs only on machines with a GPU; skipped in CI)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE or not torch.cuda.is_available(),
+                    reason="CUDA not available")
+def test_lore_torch_cuda_end_to_end(small_triplets):
+    """Fit LORE on a real GPU, exercising the CUDA-only gesvd SVD path.
+
+    ``device="auto"`` selects CUDA when available, so on GPU machines this
+    runs the genuine CUDA code path (including the ``driver='gesvd'``
+    branch that CPU-only CI cannot reach).
+    """
+    est = LORE(n_components=3, backend="torch", device="auto",
+               max_iter=50, random_state=0)
+    est.fit(small_triplets, n_objects=15)
+
+    assert est.embedding_.shape == (15, 3)
+    assert 0 <= est.rank_ <= 3
+    assert est.score(small_triplets) > 0.6
+
+
+# ---------------------------------------------------------------------------
+# Rank recovery: exact intrinsic dimensionality from dense triplets
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _TORCH_AVAILABLE, reason="torch not installed")
+def test_lore_rank3_recovery_end_to_end():
+    """LORE recovers the exact subspace rank from densely sampled triplets.
+
+    25 objects on a 3D linear subspace of 10D space; all 6900 possible
+    triplets are answered noiselessly and split 80/20 into train/test.
+    LORE must recover rank_ == 3 exactly and generalise to held-out
+    triplets.
+    """
+    manifold = LinearSubspace(subspace_dimension=3, space_dimension=10)
+    points, _ = manifold.sample_points(25, random_state=42)
+
+    triplets = make_all_triplet_indices(25, monotonic=False)
+    responses = triplet_response(triplets, points, result_format='list-order')
+
+    rng = np.random.RandomState(42)
+    perm = rng.permutation(len(responses))
+    n_train = int(0.8 * len(responses))
+    train, test = responses[perm[:n_train]], responses[perm[n_train:]]
+
+    est = LORE(n_components=10, lamb=0.01, p=0.5, backend="torch",
+               max_iter=1000, device="cpu", random_state=42)
+    est.fit(train, n_objects=25)
+
+    assert est.rank_ == 3, f"Expected exact rank recovery of 3, got {est.rank_}"
+    test_acc = est.score(test)
+    assert test_acc >= 0.9, f"Expected test accuracy >= 0.9, got {test_acc:.3f}"

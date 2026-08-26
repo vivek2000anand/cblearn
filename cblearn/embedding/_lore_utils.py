@@ -382,9 +382,7 @@ def _lore_train_torch(init, triplets, lamb, p, margin, mu,
     dev = torch_device(device)
 
     if seed is not None:
-        torch.manual_seed(seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
+        torch.manual_seed(seed)   # also seeds the CUDA generators
 
     triplets_t = torch.tensor(triplets, dtype=torch.long, device=dev)
     X = torch.tensor(init, dtype=torch.float32, device=dev)
@@ -447,7 +445,7 @@ def _lore_train_torch(init, triplets, lamb, p, margin, mu,
         with torch.no_grad():
             svd_input = X - f_grad / mu_val
             svd_kwargs = {'full_matrices': False}
-            if svd_input.is_cuda:
+            if svd_input.is_cuda:  # pragma: no cover - CUDA-only; exercised by the GPU-gated test
                 svd_kwargs['driver'] = 'gesvd'
             U, S, Vt = torch.linalg.svd(svd_input, **svd_kwargs)
             new_S = S - (lamb / mu_val) * g_grad
